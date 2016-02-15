@@ -1,3 +1,8 @@
+#include <Timer.h>
+#include <Event.h>
+
+Timer t;
+
 
 // defines pins numbers
 const int trigPin = 8;
@@ -8,6 +13,7 @@ const int RelayPin = 10;
 const int boton = 4;
 const int botonMedir = 5;
 const int iluminaLed = 12;
+const int delayCebar = 1500;
 
 int val = 0;
 
@@ -19,6 +25,7 @@ boolean tiempo = false;
 boolean btnPressed = false;
 boolean systemUp = false;
 boolean midiendo = false;
+boolean servirHabilitado = false;
 
 // defines variables
 long duration;
@@ -31,6 +38,9 @@ unsigned long inicioMedicionMillis = 0;
 unsigned long finMedicionMillis = 0;
 
 unsigned long mateMillis = 0;
+
+int pararServirEvent;
+int habilitarServirEvent;
 
 void setup() {
   pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
@@ -63,39 +73,30 @@ void loop() {
   // Calculating the distance
   distance = duration * 0.034 / 2;
 
-  // Prints the distance on the Serial Monitor
-  //Serial.print("Distance: ");
-  //Serial.println(distance);
-
-  if (tiempo && (currentMillis - previousMillis > interval)) {
-    tiempo = false;
-    digitalWrite(SirviendoLed, LOW);
-    digitalWrite(RelayPin, HIGH);
-    delay(2000);
-    //Serial.print("NO");
-  }
-
   if (!btnPressed && systemUp) {
-    if (distance <= maximumRange && distance >= minimumRange && !abierto) {
+    if (distance <= maximumRange && distance >= minimumRange && !abierto && servirHabilitado) {
       if (mateMillis == 0) {
         mateMillis = millis();
       }
-      if (millis() - mateMillis > 1000) {
-        digitalWrite(SirviendoLed, HIGH);
-        digitalWrite(RelayPin, LOW);
-        //Serial.print('Abriendo el agua ' + interval + ' milisegundos');
+      if (millis() - mateMillis > delayCebar) {
+        servirAgua();
+        pararServirEvent = t.after(interval, pararServir);
         previousMillis = currentMillis;
         tiempo = true;
         abierto = true;
       }
-    } else if (distance > maximumRange * 2 && abierto && !tiempo) {
-      abierto = false;
+    } else if (distance > maximumRange * 2) {
+      if(abierto) {
+        pararServir();
+        t.stop(pararServirEvent);
+        abierto = false;  
+      }
       //Serial.println("Salio");
       mateMillis = 0;
     }
   }
-// Boton reset
-  if (!abierto || !tiempo) {
+  // Boton reset
+  if (!abierto) {
     val = digitalRead(boton);
     if (val) {
       btnPressed = true;
@@ -108,16 +109,15 @@ void loop() {
     }
   }
 
-// Boton servir
+  // Boton servir
   if (!systemUp && distance <= maximumRange && distance >= minimumRange) {
     val = digitalRead(botonMedir);
-    digitalWrite(RelayPin, !val);
     if (val) {
       if (!midiendo) {
         inicioMedicionMillis = millis();
         midiendo = true;
       }
-      digitalWrite(SirviendoLed, HIGH);
+      servirAgua();
     } else if (midiendo && !val) {
       finMedicionMillis = millis();
       interval = finMedicionMillis - inicioMedicionMillis;
@@ -126,7 +126,7 @@ void loop() {
       digitalWrite(OKLed, HIGH);
       digitalWrite(SirviendoLed, LOW);
       midiendo = false;
-
+      pararServir();
       if (distance <= maximumRange && distance >= minimumRange) {
         abierto = true;
       } else if (distance > maximumRange * 2) {
@@ -135,12 +135,28 @@ void loop() {
     }
   }
 
-  if(distance <= maximumRange && distance >= minimumRange) {
+  if (distance <= maximumRange && distance >= minimumRange) {
     digitalWrite(iluminaLed, HIGH);
   } else {
     digitalWrite(iluminaLed, LOW);
   }
 
   delay(100);
+  t.update();
+}
 
+void servirAgua() {
+  digitalWrite(SirviendoLed, HIGH);
+  digitalWrite(RelayPin, LOW);
+  servirHabilitado = false;
+}
+
+void pararServir() {
+  digitalWrite(SirviendoLed, LOW);
+  digitalWrite(RelayPin, HIGH);
+  habilitarServirEvent = t.after(2000, habilitarServir);
+}
+
+void habilitarServir() {
+  servirHabilitado = true;
 }
