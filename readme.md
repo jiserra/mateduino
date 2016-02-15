@@ -4,4 +4,6 @@ Este es el código de Arduino para el MateDuino presentado en el Hackaton #iotMd
 
 https://vine.co/v/inUnO2UabP6
 
-Para ejecutar el código en el Arduino se necesitan las librerías de: https://github.com/JChristensen/Timer
+Para ejecutar el código en el Arduino se necesitan las librerías de: 
+* https://github.com/JChristensen/Timer
+* https://github.com/ubugnu/Arduino
