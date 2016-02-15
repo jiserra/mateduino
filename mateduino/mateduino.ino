@@ -1,3 +1,16 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Data wire is plugged into pin 2 on the Arduino
+#define ONE_WIRE_BUS 12
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+
+OneWire oneWire(ONE_WIRE_BUS);
+
+// Pass our oneWire reference to Dallas Temperature.
+
+DallasTemperature sensors(&oneWire);
 
 // defines pins numbers
 const int trigPin = 8;
@@ -7,9 +20,9 @@ const int SirviendoLed = 3;
 const int RelayPin = 10;
 const int boton = 4;
 const int botonMedir = 5;
-const int iluminaLed = 12;
-
 int val = 0;
+
+float temperatura = 0;
 
 const int maximumRange = 5;
 const int minimumRange = 3;
@@ -42,7 +55,26 @@ void setup() {
   digitalWrite(RelayPin, HIGH);
   pinMode(boton, INPUT);
   pinMode(botonMedir, INPUT);
-  pinMode(iluminaLed, OUTPUT);
+
+  sensors.begin();
+
+}
+
+float getTemperatura() {
+  sensors.requestTemperatures(); // Send the command to get temperatures
+
+  //Serial.print("Temperature for Device 1 is: ");
+  temperatura = sensors.getTempCByIndex(0);
+  //Serial.println(temperatura);
+  return temperatura;
+}
+
+boolean temperaturaIdeal() {
+  if(getTemperatura() > 60 && getTemperatura() < 85) {
+    return true; 
+  } else {
+    return false;
+  }
 }
 
 void loop() {
@@ -103,13 +135,19 @@ void loop() {
       midiendo = false;
       interval = 1000;
       digitalWrite(OKLed, LOW);
+      Serial.println(getTemperatura());
+      if(temperaturaIdeal()) {
+        Serial.println("La temperatura es correcta para el mate");
+      } else {
+        Serial.println("La temperatura no es la ideal");
+      }
     } else {
       btnPressed = false;
     }
   }
 
 // Boton servir
-  if (!systemUp && distance <= maximumRange && distance >= minimumRange) {
+  if (!systemUp && distance <= maximumRange && distance >= minimumRange && temperaturaIdeal()) {
     val = digitalRead(botonMedir);
     digitalWrite(RelayPin, !val);
     if (val) {
@@ -133,12 +171,6 @@ void loop() {
         abierto = false;
       }
     }
-  }
-
-  if(distance <= maximumRange && distance >= minimumRange) {
-    digitalWrite(iluminaLed, HIGH);
-  } else {
-    digitalWrite(iluminaLed, LOW);
   }
 
   delay(100);
