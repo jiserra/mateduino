@@ -2,9 +2,11 @@
 #include <Timer.h>
 #include <Event.h>
 
+// Timer
 Timer t;
 
-Button botonReset(4);
+// Botones
+Button btnReset(4);
 Button btnMedir(5);
 
 // defines pins numbers
@@ -13,37 +15,30 @@ const int echoPin = 7;
 const int OKLed = 2;
 const int SirviendoLed = 3;
 const int RelayPin = 10;
-const int boton = 4;
-const int botonMedir = 5;
 const int iluminaLed = 12;
 const int delayCebar = 1500;
-
-int val = 0;
-
 const int maximumRange = 5;
 const int minimumRange = 3;
 
+// defines variables
 boolean abierto = false;
 boolean tiempo = false;
 boolean btnPressed = false;
 boolean systemUp = false;
 boolean midiendo = false;
 boolean servirHabilitado = false;
-
-// defines variables
-long duration;
+int val = 0;
 int distance;
+long duration;
+long interval = 1000; // interval at which to do something (milliseconds)
+int pararServirEvent;
+int habilitarServirEvent;
 
 unsigned long previousMillis = 0; // last time update
-long interval = 1000; // interval at which to do something (milliseconds)
 unsigned long currentMillis = 0;
 unsigned long inicioMedicionMillis = 0;
 unsigned long finMedicionMillis = 0;
-
 unsigned long mateMillis = 0;
-
-int pararServirEvent;
-int habilitarServirEvent;
 
 void setup() {
   pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
@@ -53,22 +48,17 @@ void setup() {
   pinMode(SirviendoLed, OUTPUT);
   pinMode(RelayPin, OUTPUT);
   digitalWrite(RelayPin, HIGH);
-  pinMode(boton, INPUT);
-  pinMode(botonMedir, INPUT);
   pinMode(iluminaLed, OUTPUT);
-  botonReset.on_press(resetSistema);
-  botonReset.on_release(setBtnPressedFalse);
 
-  btnMedir.on_long_press(btnMedirLgnPress);
-  btnMedir.on_long_release(btnMedirLgnRelease);
+  // Los Metodos estan invertidos en la Lib,
+  btnReset.on_press(setBtnPressedFalse); // es en realidad cuando se suelta el boton Reset
+  btnReset.on_release(resetSistema);     // evento cuando se apreta el boton Reset
+
+  btnMedir.on_press(btnMedirLgnRelease);   // Cuando se suelta el boton Medir
+  btnMedir.on_release(btnMedirLgnPress);   // Cuando se apreta el boton Medir
 }
 
-void loop() {
-  botonReset.init();
-  btnMedir.init();
-  btnMedir.set_minimum_gap(500);
-
-  currentMillis = millis();
+int getDistance() {
   // Clears the trigPin
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
@@ -80,9 +70,12 @@ void loop() {
 
   // Reads the echoPin, returns the sound wave travel time in microseconds
   duration = pulseIn(echoPin, HIGH);
+}
 
-  // Calculating the distance
-  distance = duration * 0.034 / 2;
+void loop() {
+  currentMillis = millis();
+
+  distance = getSensorDistance();
 
   if (!btnPressed && systemUp) {
     if (isInRange() && !abierto && servirHabilitado) {
@@ -102,7 +95,6 @@ void loop() {
         t.stop(pararServirEvent);
         abierto = false;
       }
-      //Serial.println("Salio");
       mateMillis = 0;
     }
   }
@@ -115,21 +107,46 @@ void loop() {
 
   delay(100);
   t.update();
+
+  btnReset.init();
+  btnMedir.init();
 }
 
 /**
- * Checkea si el objeto esta dentro del rango
- */
-boolean isInRange(){
+   Obtiene la distancia medida por el sensor
+*/
+int getSensorDistance() {
+  // Clears the trigPin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  int duration_1 = pulseIn(echoPin, HIGH);
+
+  // Calculating the distance
+  int distance_1 = duration_1 * 0.034 / 2;
+  return distance_1;
+}
+
+/**
+   Checkea si el objeto esta dentro del rango
+*/
+boolean isInRange() {
   if (distance <= maximumRange && distance >= minimumRange) {
     return true;
   } else {
     return false;
   }
 }
+
 /**
- * Evento del boton cuando se efectua un Long_Press al btnMedir
- */
+   Evento del boton cuando se efectua un Long_Press al btnMedir
+*/
 void btnMedirLgnPress() {
   if (!systemUp && isInRange()) {
     servirAgua();
@@ -137,20 +154,16 @@ void btnMedirLgnPress() {
 }
 
 /**
- * Evento del boton cuando se suelta el Long_Press del btnMedir
- */
+   Evento del boton cuando se suelta el Long_Press del btnMedir
+*/
 void btnMedirLgnRelease() {
   if (!systemUp && isInRange()) {
     pararServir();
     interval = btnMedir.gap();
+    Serial.print(interval);
     systemUp = true;
     digitalWrite(OKLed, HIGH);
     digitalWrite(SirviendoLed, LOW);
-    if (distance <= maximumRange && distance >= minimumRange) {
-      abierto = true;
-    } else if (distance > maximumRange * 2) {
-      abierto = false;
-    }
   }
 }
 
@@ -167,6 +180,9 @@ void resetSistema() {
   }
 }
 
+/**
+   Setea la variable btnPressed en FALSE
+*/
 void setBtnPressedFalse() {
   btnPressed = false;
 }
