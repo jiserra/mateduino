@@ -58,25 +58,12 @@ void setup() {
   btnMedir.on_release(btnMedirLgnPress);   // Cuando se apreta el boton Medir
 }
 
-int getDistance() {
-  // Clears the trigPin
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-
-  // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echoPin, HIGH);
-}
-
 void loop() {
   currentMillis = millis();
 
   distance = getSensorDistance();
 
+  
   if (!btnPressed && systemUp) {
     if (isInRange() && !abierto && servirHabilitado) {
       if (mateMillis == 0) {
@@ -89,7 +76,7 @@ void loop() {
         tiempo = true;
         abierto = true;
       }
-    } else if (distance > maximumRange * 2) {
+    } else if (!isInRange()) {
       if (abierto) {
         pararServir();
         t.stop(pararServirEvent);
@@ -99,6 +86,7 @@ void loop() {
     }
   }
 
+  // Prende o apaga las luces que iluminan el mate
   if (isInRange()) {
     digitalWrite(iluminaLed, HIGH);
   } else {
@@ -150,6 +138,7 @@ boolean isInRange() {
 void btnMedirLgnPress() {
   if (!systemUp && isInRange()) {
     servirAgua();
+    midiendo = true;
   }
 }
 
@@ -157,8 +146,10 @@ void btnMedirLgnPress() {
    Evento del boton cuando se suelta el Long_Press del btnMedir
 */
 void btnMedirLgnRelease() {
-  if (!systemUp && isInRange()) {
+  if (!systemUp && isInRange() && midiendo) {
     pararServir();
+    abierto = true;
+    midiendo = false;
     interval = btnMedir.gap();
     Serial.print(interval);
     systemUp = true;
@@ -169,15 +160,15 @@ void btnMedirLgnRelease() {
 
 /**
    Resetea el sistema
+   No importa el estado en el que este, la idea es si sucede algo, apretando este boton se para el agua y se resetea todo
 */
 void resetSistema() {
-  if (!abierto) {
+    pararServir();
     btnPressed = true;
     systemUp = false;
     midiendo = false;
     interval = 1000;
     digitalWrite(OKLed, LOW);
-  }
 }
 
 /**
